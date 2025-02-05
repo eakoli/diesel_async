@@ -71,7 +71,7 @@ pub mod methods {
     /// to call `load` from generic code.
     ///
     /// [`RunQueryDsl`]: super::RunQueryDsl
-    pub trait LoadQuery<'query, Conn: AsyncConnectionCore, U> {
+    pub trait LoadQuery<'query, Conn: AsyncConnectionCore, U> : RunQueryDsl<Conn> {
         /// The future returned by [`LoadQuery::internal_load`]
         type LoadFuture<'conn>: Future<Output = QueryResult<Self::Stream<'conn>>> + Send
         where
@@ -91,7 +91,7 @@ pub mod methods {
         Conn: AsyncConnectionCore<Backend = DB>,
         U: Send,
         DB: Backend + 'static,
-        T: AsQuery + Send + 'query,
+        T: AsQuery + RunQueryDsl<Conn> + Send + 'query,
         T::Query: QueryFragment<DB> + QueryId + Send + 'query,
         T::SqlType: CompatibleType<U, DB, SqlType = ST>,
         U: FromSqlRow<ST, DB> + Send + 'static,
@@ -589,7 +589,9 @@ pub trait RunQueryDsl<Conn>: Sized {
     }
 }
 
-impl<T, Conn> RunQueryDsl<Conn> for T {}
+// Note: Match the same types that diesel::RunQueryDsl applies to this
+// seems safe currently, as the trait imposes no restrictions based on Conn, only on T.
+impl<T, Conn> RunQueryDsl<Conn> for T where T: diesel::query_builder::AsQuery {}
 
 /// Sugar for types which implement both `AsChangeset` and `Identifiable`
 ///
